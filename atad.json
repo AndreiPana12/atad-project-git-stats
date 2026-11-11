@@ -7,5 +7,5 @@
   "project": 10,
   "project_title": "Git Repository Statistics",
   "language": "go",
-  "run_command": "docker run --rm -p 8080:8080 <image>"
+ "run_command": "docker run --rm -p 8080:8080 ghcr.io/andreipana12/atad-project-git-stats:latest"
 }
