@@ -1,62 +1,84 @@
-# [Project title]
+# Git Repository Statistics
 
-[One paragraph: what this program does and who would use it. Replace this
-whole file — it is your project's front door, and it is marked.]
+A web service that reads a Git repository and reports what happened in it: who
+contributed, how much and when, how activity changed over time, and which files
+keep being rewritten. It is meant for someone who has to understand an
+unfamiliar repository quickly — a new team member, a reviewer, a teacher —
+without reading `git log` by hand.
 
-- **Student:** [Surname Firstname], group [group]
-- **Project:** [number and title from the project description]
+- **Student:** Pana Andrei, group DMWD
+- **Project:** 10 — Git Repository Statistics
 - **Language:** Go
 
 ## What it does
 
-[Two or three paragraphs. What problem it solves, what it does not do, and
-what state it is in.]
+You give the service the path to a Git checkout. It walks the history once,
+without modifying the repository, and then answers questions about it over
+HTTP: per-contributor commits, lines added and removed, first and last
+activity; commits per day, week or month; and the files changed most often.
+Reports can be narrowed to a date range, a subdirectory or a file pattern, and
+contributors who appear under several names or email addresses can be folded
+into one person by configurable rules.
+
+Merge commits are the main difficulty. A merge touches every line that came in
+on its branch, so counting it like an ordinary commit credits the person who
+merged with work somebody else wrote. The service therefore takes a merge
+policy (`count` or `ignore`) for every analysis, and every contributor report
+states which policy produced it. It does not judge people or code quality; it
+only counts, and says how it counted.
+
+**Current state (week 7):** only the skeleton is built. The service starts in a
+container, answers the four common routes (`/health`, `/version`, `/`,
+`POST /reset`) and is built and published by CI. None of the project-specific
+routes exist yet. [`docs/architecture.md`](docs/architecture.md) describes the
+planned design and lists what is still missing.
 
 ## How to run it
 
 ```
-docker run --rm -p 8080:8080 ghcr.io/[user]/[repo]:latest
+docker run --rm -p 8080:8080 ghcr.io/andreipana12/atad-project-git-stats:latest
 ```
 
-To build and run without Docker:
+To build and run without Docker (needs Go 1.27):
 
 ```
 go run ./cmd/app
 go run ./cmd/app --version
 ```
 
+To run the tests:
+
+```
+go test ./...
+```
+
 ## What you should see
 
-[What a successful run looks like. If it is a service, one request and its
-response. If it is a tool, one command and its output. A reader who has never
-seen your project must be able to tell whether it worked.]
+The service logs one line and listens on port 8080:
 
----
+```
+level=INFO msg=listening addr=:8080 commit=...
+```
 
-## Before you delete these notes
+A health check returns 200 and the time since start:
 
-**Fill in `atad.json` first.** Name, group, student id, email, project number
-and title, language, and the command that runs your project. The marking script reads this file. A field left as
-`[placeholder]` counts as missing.
+```
+$ curl -i http://localhost:8080/health
+HTTP/1.1 200 OK
+Content-Type: application/json
 
-**`--version` is part of the contract.** It must print one line of JSON with
-`app`, `version`, `commit` and `built_at`, and exit 0. The `commit` value is
-stamped into the binary by the Dockerfile from the SHA that CI supplies, which
-is how it is proved that the published image was built from the code you
-submitted. Do not print it yourself, and do not remove the test that checks it.
+{"status":"ok","uptime_seconds":3}
+```
 
-**The four contract routes are not optional.** `/health`, `/version`, `/` and
-`POST /reset` must answer exactly as the project document specifies, in every
-project. They are checked automatically, and a right answer with the wrong
-status code is a wrong answer.
+`--version` prints one line of JSON and exits 0:
 
-**Layout.** `cmd/app` is the entry point, `internal/` is your own packages,
-and `docs/` holds your documentation. Add packages under `internal/` as the
-project grows; a single 800-line `main.go` is not a design.
+```
+$ go run ./cmd/app --version
+{"app":"atad-project","version":"0.0.0-dev","commit":"unknown","built_at":""}
+```
 
-**`docs/` has fixed names.** `docs/architecture.md` is due in week 7 and
-`docs/report.docx` at the end. `docs/README.md` explains both — read it, and do
-not edit or delete it.
+`commit` is `unknown` with `go run`. In the published image it is the SHA of
+the commit CI built from, which is also what `GET /version` returns.
 
-**Do not commit** `coverage/`, build output, or anything with a credential in
-it. `.gitignore` already covers the usual cases.
+Opening <http://localhost:8080/> in a browser shows the student and project
+details.
